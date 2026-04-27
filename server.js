@@ -139,6 +139,7 @@ const apiLimiter = rateLimit({
   max: 60
 });
 
+app.use("/api/v1/profiles", profileRoutes);
 app.use("/api/v1/auth", authLimiter);
 app.use("/api/v1", apiLimiter);
 const cookieParser = require("cookie-parser");
