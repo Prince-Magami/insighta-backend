@@ -121,5 +121,11 @@ app.use("/api/v1/profiles", profileRoutes);
 const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
+
+  
   console.log(`Server running on ${PORT}`);
 });
+
+const morgan = require("morgan");
+const rateLimit = require("express-rate-limit");
+const cookieParser = require("cookie-parser");
