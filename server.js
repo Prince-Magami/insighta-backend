@@ -128,6 +128,19 @@ app.listen(PORT, () => {
 
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
+
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60
+});
+
+app.use("/api/v1/auth", authLimiter);
+app.use("/api/v1", apiLimiter);
 const cookieParser = require("cookie-parser");
 
 app.use(morgan("dev"));
