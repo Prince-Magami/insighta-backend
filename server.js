@@ -116,7 +116,7 @@ app.get("/seed", async (req, res) => {
   }
 });
 
-app.use("/api/profiles", profileRoutes);
+app.use("/api/v1/profiles", profileRoutes);
 
 const PORT = process.env.PORT || 8080;
 
