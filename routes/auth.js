@@ -1,74 +1,54 @@
 const express = require("express");
-const axios = require("axios");
 const router = express.Router();
 
 const User = require("../models/User");
-const { generateAccessToken, generateRefreshToken } = require("../utils/tokens");
+const {
+  generateAccessToken,
+  generateRefreshToken
+} = require("../utils/token");
 
-router.get("/github", (req, res) => {
-  const redirectUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user`;
-
-  res.redirect(redirectUrl);
-});
-
-
-router.get("/github/callback", async (req, res) => {
+// ✅ LOGIN (TEMP – replace with GitHub later)
+router.post("/login", async (req, res) => {
   try {
-    const code = req.query.code;
+    const { username } = req.body;
 
-    const tokenRes = await axios.post(
-      "https://github.com/login/oauth/access_token",
-      {
-        client_id: process.env.GITHUB_CLIENT_ID,
-        client_secret: process.env.GITHUB_CLIENT_SECRET,
-        code
-      },
-      {
-        headers: { Accept: "application/json" }
-      }
-    );
-
-    const access_token = tokenRes.data.access_token;
-
-    const userRes = await axios.get("https://api.github.com/user", {
-      headers: {
-        Authorization: `Bearer ${access_token}`
-      }
-    });
-
-    const githubUser = userRes.data;
-
-    let user = await User.findOne({ github_id: githubUser.id });
-
-    if (!user) {
-      const count = await User.countDocuments();
-
-      user = await User.create({
-        github_id: githubUser.id,
-        username: githubUser.login,
-        role: count === 0 ? "admin" : "analyst",
-        is_active: true,
-        last_login_at: new Date().toISOString()
+    if (!username) {
+      return res.status(400).json({
+        status: "error",
+        message: "Username required"
       });
     }
 
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    let user = await User.findOne({ username });
 
-    return res.json({
+    if (!user) {
+      user = await User.create({
+        id: Date.now().toString(),
+        username,
+        role: "admin" 
+      });
+    }
+
+    const access_token = generateAccessToken(user);
+    const refresh_token = generateRefreshToken(user);
+
+    user.refresh_token = refresh_token;
+    user.last_login_at = new Date();
+    await user.save();
+
+    res.json({
       status: "success",
-      access_token: accessToken,
-      refresh_token: refreshToken
+      access_token,
+      refresh_token
     });
 
   } catch (e) {
-    return res.status(500).json({
+    res.status(500).json({
       status: "error",
-      message: "Authentication failed"
+      message: "Server failure"
     });
   }
 });
-
 
 router.post("/refresh", async (req, res) => {
   try {
@@ -83,34 +63,63 @@ router.post("/refresh", async (req, res) => {
 
     const decoded = require("jsonwebtoken").verify(
       refresh_token,
-      process.env.JWT_SECRET
+      process.env.JWT_REFRESH_SECRET
     );
 
-    const user = await User.findById(decoded.id);
+    const user = await User.findOne({
+      id: decoded.id,
+      refresh_token
+    });
+
+    if (!user) {
+      return res.status(403).json({
+        status: "error",
+        message: "Invalid refresh token"
+      });
+    }
 
     const newAccess = generateAccessToken(user);
     const newRefresh = generateRefreshToken(user);
 
-    return res.json({
+    user.refresh_token = newRefresh;
+    await user.save();
+
+    res.json({
       status: "success",
       access_token: newAccess,
       refresh_token: newRefresh
     });
 
-  } catch (e) {
-    return res.status(401).json({
+  } catch {
+    res.status(403).json({
       status: "error",
-      message: "Invalid refresh token"
+      message: "Refresh failed"
     });
   }
 });
 
+router.post("/logout", async (req, res) => {
+  try {
+    const { refresh_token } = req.body;
 
-router.post("/logout", (req, res) => {
-  return res.json({
-    status: "success",
-    message: "Logged out"
-  });
+    const user = await User.findOne({ refresh_token });
+
+    if (user) {
+      user.refresh_token = null;
+      await user.save();
+    }
+
+    res.json({
+      status: "success",
+      message: "Logged out"
+    });
+
+  } catch {
+    res.status(500).json({
+      status: "error",
+      message: "Server failure"
+    });
+  }
 });
 
 module.exports = router;
