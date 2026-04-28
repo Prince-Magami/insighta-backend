@@ -153,3 +153,7 @@ const limiter = rateLimit({
 });
 
 app.use(limiter);
+
+const authRoutes = require("./routes/auth");
+
+app.use("/api/v1/auth", authRoutes);
