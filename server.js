@@ -1,3 +1,8 @@
+const morgan = require("morgan");
+const rateLimit = require("express-rate-limit");
+const cookieParser = require("cookie-parser");
+
+const authRoutes = require("./routes/auth");
 require("dotenv").config();
 
 const express = require("express");
