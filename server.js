@@ -1,141 +1,62 @@
-const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
-const cookieParser = require("cookie-parser");
-
-const authRoutes = require("./routes/auth");
 require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const morgan = require("morgan");
+const rateLimit = require("express-rate-limit");
+const cookieParser = require("cookie-parser");
 const fs = require("fs");
 const path = require("path");
 
 const connectDB = require("./db");
 const Profile = require("./models/Profile");
+
 const profileRoutes = require("./routes/profiles");
+const authRoutes = require("./routes/auth");
 
 const app = express();
 
 connectDB()
   .then(async () => {
-    try {
-      const count = await Profile.countDocuments();
+    const count = await Profile.countDocuments();
 
-      if (count === 0) {
-        console.log("Auto-seeding database...");
+    if (count === 0) {
+      console.log("Auto-seeding database...");
 
-        const filePath = path.join(__dirname, "data", "profiles-2026.json");
-        const raw = fs.readFileSync(filePath, "utf-8");
-        const json = JSON.parse(raw);
+      const filePath = path.join(__dirname, "data", "profiles-2026.json");
+      const raw = fs.readFileSync(filePath, "utf-8");
+      const json = JSON.parse(raw);
 
-        const profiles = json.profiles || json;
+      const profiles = json.profiles || json;
 
-        if (!Array.isArray(profiles)) {
-          console.log("Invalid seed structure");
-          return;
-        }
+      const formatted = profiles.map((p, i) => ({
+        id: `${Date.now()}-${i}`,
+        name: p.name,
+        gender: p.gender,
+        gender_probability: p.gender_probability,
+        age: p.age,
+        age_group: p.age_group,
+        country_id: p.country_id,
+        country_name: p.country_name,
+        country_probability: p.country_probability,
+        created_at: new Date().toISOString()
+      }));
 
-        const formatted = profiles.map((p, i) => ({
-          id: `${Date.now()}-${i}`,
-          name: p.name,
-          gender: p.gender,
-          gender_probability: p.gender_probability,
-          age: p.age,
-          age_group: p.age_group,
-          country_id: p.country_id,
-          country_name: p.country_name,
-          country_probability: p.country_probability,
-          created_at: new Date().toISOString()
-        }));
-
-        await Profile.insertMany(formatted);
-
-        console.log("Auto-seeding complete:", formatted.length);
-      } else {
-        console.log("Database already contains data:", count);
-      }
-    } catch (err) {
-      console.error("Auto-seed error:", err);
+      await Profile.insertMany(formatted);
+      console.log("Seeded:", formatted.length);
+    } else {
+      console.log("Database already contains:", count);
     }
   })
   .catch((err) => {
-    console.error("DB connection failed:", err.message);
+    console.error("DB ERROR:", err.message);
     process.exit(1);
   });
 
 app.use(cors());
 app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.json({
-    status: "success",
-    message: "Intelligence Query Engine running"
-  });
-});
-
-app.use(morgan("combined"));
 app.use(cookieParser());
-
-app.get("/seed", async (req, res) => {
-  try {
-    const filePath = path.join(__dirname, "data", "profiles-2026.json");
-    const rawData = fs.readFileSync(filePath, "utf-8");
-    const json = JSON.parse(rawData);
-
-    const profiles = json.profiles || json;
-
-    if (!Array.isArray(profiles)) {
-      return res.status(400).json({
-        status: "error",
-        message: "Invalid seed file structure"
-      });
-    }
-
-    await Profile.deleteMany({});
-
-    const formatted = profiles.map((p, i) => ({
-      id: `${Date.now()}-${i}`,
-      name: p.name,
-      gender: p.gender,
-      gender_probability: p.gender_probability,
-      age: p.age,
-      age_group: p.age_group,
-      country_id: p.country_id,
-      country_name: p.country_name,
-      country_probability: p.country_probability,
-      created_at: new Date().toISOString()
-    }));
-
-    await Profile.insertMany(formatted);
-
-    res.json({
-      status: "success",
-      message: "Database seeded successfully",
-      total: formatted.length
-    });
-
-  } catch (error) {
-    console.error("SEED ERROR:", error);
-
-    return res.status(500).json({
-      status: "error",
-      message: error.message
-    });
-  }
-});
-
-app.use("/api/v1/profiles", profileRoutes);
-
-const PORT = process.env.PORT || 8080;
-
-app.listen(PORT, () => {
-
-  
-  console.log(`Server running on ${PORT}`);
-});
-
-const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
+app.use(morgan("combined"));
 
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -150,8 +71,17 @@ const apiLimiter = rateLimit({
 app.use("/api/v1/auth", authLimiter);
 app.use("/api/v1", apiLimiter);
 
-app.use(limiter);
-
-const authRoutes = require("./routes/auth");
+app.get("/", (req, res) => {
+  res.json({
+    status: "success",
+    message: "Insighta Labs+ API running"
+  });
+});
 
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/profiles", profileRoutes);
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`Server running on ${PORT}`);
+});
