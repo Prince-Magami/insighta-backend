@@ -8,13 +8,13 @@
     "seed": "node seed.js"
   },
 "dependencies": {
-  "express": "...",
-  "cors": "...",
-  "dotenv": "...",
-  "mongoose": "...",
-  "cookie-parser": "...",
-  "json2csv": "...",
-  "express-rate-limit": "...",
-  "morgan": "..."
+  "express": "^4.18.2",
+  "cors": "^2.8.5",
+  "dotenv": "^16.4.5",
+  "mongoose": "^8.0.0",
+  "cookie-parser": "^1.4.6",
+  "json2csv": "^6.0.0",
+  "express-rate-limit": "^7.0.0",
+  "morgan": "^1.10.0"
 }
 }
