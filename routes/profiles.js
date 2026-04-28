@@ -34,7 +34,7 @@ const checkApiVersion = (req, res, next) => {
   next();
 };
 
-router.get("/", async (req, res) => {const checkApiVersion = (req, res, next) => {
+router.get("/", requireAuth, checkApiVersion, async (req, res) => {
   const version = req.headers["x-api-version"];
 
   if (!version) {
@@ -190,7 +190,7 @@ const data = results.map(p => ({
 });
 
 
-router.get("/search", async (req, res) => {
+router.get("/search", requireAuth, checkApiVersion, async (req, res) => {
 const checkApiVersion = (req, res, next) => {
   const version = req.headers["x-api-version"];
 
@@ -236,22 +236,53 @@ const checkApiVersion = (req, res, next) => {
     if (limit > 50) limit = 50;
 
     const skip = (page - 1) * limit;
+const total_pages = Math.ceil(total / limit);
 
-    const total = await Profile.countDocuments(filters);
+return res.json({
+  status: "success",
+  page,
+  limit,
+  total,
+  total_pages,
+  links: {
+    self: `/api/v1/profiles?page=${page}&limit=${limit}`,
+    next: page < total_pages ? `/api/v1/profiles?page=${page + 1}&limit=${limit}` : null,
+    prev: page > 1 ? `/api/v1/profiles?page=${page - 1}&limit=${limit}` : null
+  },
+  data
+});
+module.exports = router;
 
-    const data = await Profile.find(filters)
-      .skip(skip)
-      .limit(limit);
+    router.post("/", requireAuth, requireRole("admin"), checkApiVersion, async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({
+        status: "error",
+        message: "Name is required"
+      });
+    }
+
+    const profile = await Profile.create({
+      id: Date.now().toString(),
+      name,
+      gender: "female",
+      gender_probability: 0.9,
+      age: 30,
+      age_group: "adult",
+      country_id: "US",
+      country_name: "United States",
+      country_probability: 0.8,
+      created_at: new Date().toISOString()
+    });
 
     return res.json({
       status: "success",
-      page,
-      limit,
-      total,
-      data
+      data: profile
     });
 
-  } catch (error) {
+  } catch (e) {
     return res.status(500).json({
       status: "error",
       message: "Server failure"
@@ -259,5 +290,29 @@ const checkApiVersion = (req, res, next) => {
   }
 });
 
+    router.get("/export", requireAuth, requireRole("admin"), checkApiVersion, async (req, res) => {
+  try {
 
-module.exports = router;
+    const profiles = await Profile.find({});
+
+    const fields = [
+      "id","name","gender","gender_probability",
+      "age","age_group","country_id",
+      "country_name","country_probability","created_at"
+    ];
+
+    const parser = new Parser({ fields });
+    const csv = parser.parse(profiles);
+
+    res.header("Content-Type", "text/csv");
+    res.attachment(`profiles_${Date.now()}.csv`);
+
+    return res.send(csv);
+
+  } catch (e) {
+    return res.status(500).json({
+      status: "error",
+      message: "Server failure"
+    });
+  }
+});
