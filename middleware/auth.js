@@ -5,7 +5,7 @@ const requireAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         status: "error",
         message: "Unauthorized"
@@ -16,7 +16,7 @@ const requireAuth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.findById(decoded.id);
+    const user = await User.findOne({ id: decoded.id });
 
     if (!user || !user.is_active) {
       return res.status(403).json({
@@ -26,9 +26,10 @@ const requireAuth = async (req, res, next) => {
     }
 
     req.user = user;
+
     next();
 
-  } catch (e) {
+  } catch (err) {
     return res.status(401).json({
       status: "error",
       message: "Invalid or expired token"
