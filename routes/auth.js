@@ -5,7 +5,6 @@ const router = express.Router();
 const User = require("../models/User");
 const { generateAccessToken, generateRefreshToken } = require("../utils/tokens");
 
-// STEP 1: Redirect to GitHub
 router.get("/github", (req, res) => {
   const redirectUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user`;
 
@@ -13,7 +12,6 @@ router.get("/github", (req, res) => {
 });
 
 
-// STEP 2: Callback
 router.get("/github/callback", async (req, res) => {
   try {
     const code = req.query.code;
@@ -72,7 +70,6 @@ router.get("/github/callback", async (req, res) => {
 });
 
 
-// REFRESH
 router.post("/refresh", async (req, res) => {
   try {
     const { refresh_token } = req.body;
@@ -109,7 +106,6 @@ router.post("/refresh", async (req, res) => {
 });
 
 
-// LOGOUT (dummy for now)
 router.post("/logout", (req, res) => {
   return res.json({
     status: "success",
